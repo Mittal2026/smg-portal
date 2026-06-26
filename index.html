@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMG Employee Portal — Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-wrap">
+
+    <!-- Left: Branding -->
+    <div class="brand-panel">
+      <div class="brand-logo">Shree Mittal Group</div>
+      <div class="brand-main">
+        <h1>Employee<br>Portal</h1>
+        <p>Your central hub for tasks,<br>attendance, and team activity.</p>
+      </div>
+      <div class="brand-footer">Internal use only &nbsp;·&nbsp; v1.0</div>
+    </div>
+
+    <!-- Right: Login Form -->
+    <div class="form-panel">
+      <div class="form-header">
+        <h2>Sign in</h2>
+        <p>Enter your credentials to continue</p>
+      </div>
+
+      <div class="field">
+        <label for="email">Email address</label>
+        <input type="email" id="email" placeholder="you@shreemittal.com" autocomplete="email">
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <div class="error-msg" id="errorMsg"></div>
+
+      <button class="login-btn" id="loginBtn" onclick="handleLogin()">
+        Sign in
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const API = 'https://script.google.com/macros/s/AKfycbzuEC8xxdr7xbb8JyJm-bsDZqdgQoE3D99dn74_auRg9xAOasQKbJEPgLcgnGpmLGNHFw/exec';
+
+  // If already logged in, redirect to dashboard
+  const savedToken = localStorage.getItem('smg_token');
+  if (savedToken) {
+    window.location.href = 'dashboard.html';
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') handleLogin();
+  });
+
+  function handleLogin() {
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value.trim();
+    const btn      = document.getElementById('loginBtn');
+    const errorDiv = document.getElementById('errorMsg');
+
+    errorDiv.classList.remove('show');
+    document.getElementById('email').classList.remove('error');
+    document.getElementById('password').classList.remove('error');
+
+    if (!email) {
+      document.getElementById('email').classList.add('error');
+      showError('Please enter your email address.');
+      return;
+    }
+    if (!password) {
+      document.getElementById('password').classList.add('error');
+      showError('Please enter your password.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-inline"></span>Signing in…';
+
+    const url = `${API}?action=login&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
+
+    fetch(url)
+      .then(res => res.json())
+      .then(result => {
+        if (result.success) {
+          // Store session in localStorage
+          localStorage.setItem('smg_token',       result.token);
+          localStorage.setItem('smg_name',        result.userName);
+          localStorage.setItem('smg_role',        result.role);
+          localStorage.setItem('smg_email',       result.email);
+          localStorage.setItem('smg_designation', result.designation);
+          window.location.href = 'dashboard.html';
+        } else {
+          showError(result.error || 'Login failed. Please try again.');
+          btn.disabled = false;
+          btn.innerHTML = 'Sign in';
+        }
+      })
+      .catch(err => {
+        showError('Connection error. Please try again.');
+        btn.disabled = false;
+        btn.innerHTML = 'Sign in';
+        console.error(err);
+      });
+  }
+
+  function showError(msg) {
+    const errorDiv = document.getElementById('errorMsg');
+    errorDiv.textContent = msg;
+    errorDiv.classList.add('show');
+  }
+</script>
+
+</body>
+</html>

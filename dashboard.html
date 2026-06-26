@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMG Employee Portal</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="dashboard-page">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="company">Shree Mittal Group</div>
+      <div class="portal-name">Employee Portal</div>
+    </div>
+
+    <div class="user-card">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <div class="user-name" id="userName">Loading…</div>
+      <div class="user-designation" id="userDesignation"></div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-section">
+        <div class="nav-label">Main</div>
+        <div class="nav-item active" onclick="switchTab('summary', this)">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-text">Summary</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('checklist', this)">
+          <span class="nav-icon">✅</span>
+          <span class="nav-text">Checklist Tasks</span>
+          <span class="nav-badge" id="sidebarBadge">…</span>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Coming Soon</div>
+        <div class="nav-item disabled">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">Delegation</span>
+        </div>
+        <div class="nav-item disabled">
+          <span class="nav-icon">📅</span>
+          <span class="nav-text">Attendance</span>
+        </div>
+        <div class="nav-item disabled">
+          <span class="nav-icon">⭐</span>
+          <span class="nav-text">Score</span>
+        </div>
+        <div class="nav-item disabled">
+          <span class="nav-icon">📢</span>
+          <span class="nav-text">Announcements</span>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="handleLogout()">
+        <span class="nav-icon">🚪</span>
+        <span class="nav-text">Sign out</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="page-title" id="pageTitle">Summary</div>
+      <div class="date-badge" id="todayDate"></div>
+    </div>
+
+    <div class="content">
+
+      <!-- SUMMARY TAB -->
+      <div class="tab-page active" id="tab-summary">
+        <div class="scorecard-row">
+          <div class="scorecard red">
+            <div class="sc-label">Overdue Tasks</div>
+            <div class="sc-value" id="sc-overdue">—</div>
+            <div class="sc-sub">Past due, not completed</div>
+          </div>
+          <div class="scorecard amber">
+            <div class="sc-label">Due Today</div>
+            <div class="sc-value" id="sc-today">—</div>
+            <div class="sc-sub">Pending for today</div>
+          </div>
+          <div class="scorecard green">
+            <div class="sc-label">Completed Today</div>
+            <div class="sc-value" id="sc-done">—</div>
+            <div class="sc-sub">Marked done today</div>
+          </div>
+          <div class="scorecard blue">
+            <div class="sc-label">Total Pending</div>
+            <div class="sc-value" id="sc-total">—</div>
+            <div class="sc-sub">All due + overdue</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHECKLIST TAB -->
+      <div class="tab-page" id="tab-checklist">
+        <div class="scorecard-row">
+          <div class="scorecard red">
+            <div class="sc-label">Overdue</div>
+            <div class="sc-value" id="cl-overdue">—</div>
+            <div class="sc-sub">Past due</div>
+          </div>
+          <div class="scorecard amber">
+            <div class="sc-label">Due Today</div>
+            <div class="sc-value" id="cl-today">—</div>
+            <div class="sc-sub">Pending today</div>
+          </div>
+          <div class="scorecard green">
+            <div class="sc-label">Done Today</div>
+            <div class="sc-value" id="cl-done">—</div>
+            <div class="sc-sub">Completed today</div>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <div class="section-title">My Pending Tasks</div>
+          <button class="refresh-btn" onclick="loadTasks()">↺ Refresh</button>
+        </div>
+        <div class="table-wrap" id="checklistTableWrap">
+          <div class="loading-state">
+            <div class="loading-spinner"></div>
+            Loading your tasks…
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<script>
+  const API       = 'https://script.google.com/macros/s/AKfycbzuEC8xxdr7xbb8JyJm-bsDZqdgQoE3D99dn74_auRg9xAOasQKbJEPgLcgnGpmLGNHFw/exec';
+  const FORM_BASE = 'https://docs.google.com/forms/d/e/1FAIpQLSdKv710FRLRrwKvRQr0mnXPaBI2YPAzckCxdgg7dwg3U5LXTA/viewform?usp=pp_url&entry.1749912467=';
+
+  // ── Auth check ──────────────────────────────────────────────────────────────
+  const TOKEN       = localStorage.getItem('smg_token');
+  const USER_NAME   = localStorage.getItem('smg_name');
+  const USER_DESIG  = localStorage.getItem('smg_designation');
+
+  if (!TOKEN) {
+    window.location.href = 'index.html';
+  }
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  window.onload = function() {
+    // Set date
+    document.getElementById('todayDate').textContent =
+      new Date().toLocaleDateString('en-IN', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+      });
+
+    // Set user info from localStorage (instant, no API call needed)
+    setUserInfo(USER_NAME || '?', USER_DESIG || '');
+
+    // Validate token with server then load tasks
+    fetch(`${API}?action=validateToken&token=${TOKEN}`)
+      .then(r => r.json())
+      .then(result => {
+        if (!result.valid) {
+          localStorage.clear();
+          window.location.href = 'index.html';
+          return;
+        }
+        loadTasks();
+      })
+      .catch(() => {
+        // Network error — still try to load tasks
+        loadTasks();
+      });
+  };
+
+  function setUserInfo(name, designation) {
+    document.getElementById('userName').textContent      = name;
+    document.getElementById('userDesignation').textContent = designation;
+    document.getElementById('userAvatar').textContent    = name.charAt(0).toUpperCase();
+  }
+
+  // ── Tab switching ───────────────────────────────────────────────────────────
+  function switchTab(tabId, el) {
+    document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+    el.classList.add('active');
+    const titles = { summary: 'Summary', checklist: 'Checklist Tasks' };
+    document.getElementById('pageTitle').textContent = titles[tabId] || tabId;
+  }
+
+  // ── Load tasks ──────────────────────────────────────────────────────────────
+  function loadTasks() {
+    document.getElementById('checklistTableWrap').innerHTML = loadingHTML();
+
+    fetch(`${API}?action=getTasks&token=${TOKEN}`)
+      .then(r => r.json())
+      .then(result => {
+        if (result.error) { showTableError(result.error); return; }
+        renderAll(result);
+      })
+      .catch(err => showTableError('Connection error: ' + err.message));
+  }
+
+  function renderAll(result) {
+    const { tasks, counts } = result;
+
+    // Scorecards
+    document.getElementById('sc-overdue').textContent = counts.overdueCount;
+    document.getElementById('sc-today').textContent   = counts.pendingToday;
+    document.getElementById('sc-done').textContent    = counts.completedToday;
+    document.getElementById('sc-total').textContent   = counts.totalPending;
+    document.getElementById('cl-overdue').textContent = counts.overdueCount;
+    document.getElementById('cl-today').textContent   = counts.pendingToday;
+    document.getElementById('cl-done').textContent    = counts.completedToday;
+
+    // Sidebar badge
+    document.getElementById('sidebarBadge').textContent = counts.totalPending || '0';
+
+    // Table
+    if (!tasks || tasks.length === 0) {
+      document.getElementById('checklistTableWrap').innerHTML =
+        emptyHTML('🎉', 'All caught up!', 'No pending tasks due today or earlier.');
+      return;
+    }
+
+    document.getElementById('checklistTableWrap').innerHTML = buildTable(tasks);
+  }
+
+  function buildTable(tasks) {
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    let rows = '';
+    tasks.forEach(function(t) {
+      const parts = (t.plannedDate || '').split('/');
+      const pd    = parts.length === 3
+        ? new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]))
+        : new Date(t.plannedDate);
+      pd.setHours(0,0,0,0);
+      const isOverdue = pd < today;
+
+      const refCell = (t.refLink && t.refLink !== 'Not Available' && t.refLink !== 'Not Required' && t.refLink.startsWith('http'))
+        ? `<a class="ref-link" href="${t.refLink}" target="_blank">🔗 Open</a>`
+        : `<span style="color:var(--text-soft);font-size:12px">—</span>`;
+
+      const timeDisplay = formatTime(t.plannedTime);
+      const formUrl     = FORM_BASE + encodeURIComponent(t.taskId);
+
+      rows += `
+        <tr>
+          <td><span class="task-id">${t.taskId}</span></td>
+          <td><div class="task-desc">${t.taskDesc}</div></td>
+          <td>${refCell}</td>
+          <td class="date-col">
+            ${t.plannedDate}
+            ${isOverdue ? '<span class="overdue-badge">OVERDUE</span>' : ''}
+          </td>
+          <td>${timeDisplay}</td>
+          <td>
+            <a class="complete-btn" href="${formUrl}" target="_blank">✓ Mark Complete</a>
+          </td>
+        </tr>`;
+    });
+
+    return `
+      <table>
+        <thead>
+          <tr>
+            <th>Task ID</th>
+            <th>Description</th>
+            <th>Reference</th>
+            <th>Due Date</th>
+            <th>Time</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  // ── Logout ──────────────────────────────────────────────────────────────────
+  function handleLogout() {
+    fetch(`${API}?action=logout&token=${TOKEN}`)
+      .finally(() => {
+        localStorage.clear();
+        window.location.href = 'index.html';
+      });
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  function formatTime(value) {
+    if (!value || value === '') return '—';
+    if (typeof value === 'string' && /^\d{1,2}:\d{2}$/.test(value.trim())) return value.trim();
+    if (typeof value === 'string' && value.includes('1899')) {
+      const d = new Date(value);
+      if (!isNaN(d)) return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
+    return value;
+  }
+
+  function loadingHTML() {
+    return `<div class="loading-state"><div class="loading-spinner"></div>Loading your tasks…</div>`;
+  }
+
+  function emptyHTML(icon, title, msg) {
+    return `<div class="empty-state"><div class="empty-icon">${icon}</div><h3>${title}</h3><p>${msg}</p></div>`;
+  }
+
+  function showTableError(msg) {
+    document.getElementById('checklistTableWrap').innerHTML = emptyHTML('⚠️', 'Could not load tasks', msg);
+  }
+</script>
+
+</body>
+</html>
