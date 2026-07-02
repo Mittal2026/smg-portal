@@ -135,9 +135,20 @@
         </div>
 
         <div class="section-header">
-          <div class="section-title">My Pending Tasks</div>
-          <button class="refresh-btn" onclick="loadTasks()">↺ Refresh</button>
-        </div>
+  <div class="section-title">My Pending Tasks</div>
+  <div style="display:flex;gap:8px;">
+    <button class="refresh-btn" onclick="loadTasks()">↺ Refresh</button>
+    <a href="https://mittal2026.github.io/checklist-form/" target="_blank"
+       style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;
+              background:#e94560;color:#fff;border-radius:8px;font-size:12px;
+              font-weight:600;text-decoration:none;font-family:Inter,sans-serif;
+              transition:background 0.15s;"
+       onmouseover="this.style.background='#c0392b'"
+       onmouseout="this.style.background='#e94560'">
+      + Add Task
+    </a>
+  </div>
+</div>
         <div class="table-wrap" id="checklistTableWrap">
           <div class="loading-state">
             <div class="loading-spinner"></div>
