@@ -318,15 +318,26 @@
   }
 
   function confirmLogout() {
+  // Show signing out state
+  const btn = document.querySelector('#logoutModal button:last-child');
+  btn.textContent = 'Signing out…';
+  btn.disabled = true;
+
   fetch(API, {
     method: 'POST',
     body: JSON.stringify({ action: 'logout', token: TOKEN })
   })
-  .finally(() => {
+  .then(r => r.json())
+  .then(() => {
+    localStorage.clear();
+    window.location.href = 'index.html';
+  })
+  .catch(() => {
+    // Even if fetch fails, still logout locally
     localStorage.clear();
     window.location.href = 'index.html';
   });
-}
+  }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
   function formatTime(value) {
