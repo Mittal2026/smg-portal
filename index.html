@@ -99,11 +99,12 @@
         if (result.success) {
           // Store session in localStorage
           localStorage.setItem('smg_token',       result.token);
-          localStorage.setItem('smg_name',        result.userName);
-          localStorage.setItem('smg_role',        result.role);
-          localStorage.setItem('smg_email',       result.email);
-          localStorage.setItem('smg_designation', result.designation);
-          window.location.href = 'dashboard.html';
+localStorage.setItem('smg_name',        result.userName);
+localStorage.setItem('smg_role',        result.role);
+localStorage.setItem('smg_email',       result.email);
+localStorage.setItem('smg_designation', result.designation);
+localStorage.setItem('smg_modules',     JSON.stringify(result.modules || {}));
+window.location.href = 'dashboard.html';
         } else {
           showError(result.error || 'Login failed. Please try again.');
           btn.disabled = false;
