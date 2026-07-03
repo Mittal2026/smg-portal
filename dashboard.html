@@ -491,6 +491,26 @@ function applyFilters() {
   if (typeFilter)  filtered = filtered.filter(t => t.checklistType === typeFilter);
   if (desigFilter) filtered = filtered.filter(t => t.doerDesig === desigFilter);
 
+  // Recalculate tiles from filtered data
+  const today = new Date(); today.setHours(0,0,0,0);
+  let overdueCount = 0;
+  let todayCount   = 0;
+
+  filtered.forEach(t => {
+    const parts = (t.plannedDate || '').split('/');
+    const pd    = parts.length === 3
+      ? new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]))
+      : new Date(t.plannedDate);
+    pd.setHours(0,0,0,0);
+    if (pd.getTime() === today.getTime()) todayCount++;
+    else if (pd < today) overdueCount++;
+  });
+
+  document.getElementById('fu-overdue').textContent = overdueCount;
+  document.getElementById('fu-today').textContent   = todayCount;
+  document.getElementById('fu-total').textContent   = filtered.length;
+  // fu-done (completed today) stays static — not affected by pending task filter
+
   renderFollowupTable(filtered);
 }
 
