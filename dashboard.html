@@ -36,40 +36,7 @@
       <div class="user-designation" id="userDesignation"></div>
     </div>
 
-    <nav class="nav">
-      <div class="nav-section">
-        <div class="nav-label">Main</div>
-        <div class="nav-item active" onclick="switchTab('summary', this)">
-          <span class="nav-icon">🏠</span>
-          <span class="nav-text">Summary</span>
-        </div>
-        <div class="nav-item" onclick="switchTab('checklist', this)">
-          <span class="nav-icon">✅</span>
-          <span class="nav-text">Checklist Tasks</span>
-          <span class="nav-badge" id="sidebarBadge">…</span>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-label">Coming Soon</div>
-        <div class="nav-item disabled">
-          <span class="nav-icon">📋</span>
-          <span class="nav-text">Delegation</span>
-        </div>
-        <div class="nav-item disabled">
-          <span class="nav-icon">📅</span>
-          <span class="nav-text">Attendance</span>
-        </div>
-        <div class="nav-item disabled">
-          <span class="nav-icon">⭐</span>
-          <span class="nav-text">Score</span>
-        </div>
-        <div class="nav-item disabled">
-          <span class="nav-icon">📢</span>
-          <span class="nav-text">Announcements</span>
-        </div>
-      </div>
-    </nav>
+    <nav class="nav" id="sidebarNav"></nav>
 
     <div class="sidebar-footer">
       <button class="logout-btn" onclick="handleLogout()">
@@ -170,6 +137,53 @@
   const TOKEN       = localStorage.getItem('smg_token');
   const USER_NAME   = localStorage.getItem('smg_name');
   const USER_DESIG  = localStorage.getItem('smg_designation');
+  const MODULES = JSON.parse(localStorage.getItem('smg_modules') || '{}');
+
+  function buildSidebar() {
+  const nav = document.getElementById('sidebarNav');
+
+  // Always visible
+  let html = `
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <div class="nav-item active" onclick="switchTab('summary', this)">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-text">Summary</span>
+      </div>`;
+
+  // Checklist — controlled by module access
+  if (MODULES.checklist) {
+    html += `
+      <div class="nav-item" onclick="switchTab('checklist', this)">
+        <span class="nav-icon">✅</span>
+        <span class="nav-text">Checklist Tasks</span>
+        <span class="nav-badge" id="sidebarBadge">…</span>
+      </div>`;
+  }
+
+  // Follow-up — PC only
+  if (MODULES.followup) {
+    html += `
+      <div class="nav-item" onclick="switchTab('followup', this)">
+        <span class="nav-icon">🔍</span>
+        <span class="nav-text">Follow-up</span>
+      </div>`;
+  }
+
+  html += `</div>`;
+
+  // Coming soon section — only show if there are locked modules
+  const hasLocked = !MODULES.delegation || !MODULES.attendance || !MODULES.score;
+  if (hasLocked) {
+    html += `<div class="nav-section"><div class="nav-label">Coming Soon</div>`;
+    if (!MODULES.delegation) html += `<div class="nav-item disabled"><span class="nav-icon">📋</span><span class="nav-text">Delegation</span></div>`;
+    if (!MODULES.attendance) html += `<div class="nav-item disabled"><span class="nav-icon">📅</span><span class="nav-text">Attendance</span></div>`;
+    if (!MODULES.score)      html += `<div class="nav-item disabled"><span class="nav-icon">⭐</span><span class="nav-text">Score</span></div>`;
+    html += `</div>`;
+  }
+
+  nav.innerHTML = html;
+}
 
   if (!TOKEN) {
     window.location.href = 'index.html';
@@ -177,6 +191,7 @@
 
   // ── Init ────────────────────────────────────────────────────────────────────
   window.onload = function() {
+    buildSidebar();
     // Set date
     document.getElementById('todayDate').textContent =
       new Date().toLocaleDateString('en-IN', {
