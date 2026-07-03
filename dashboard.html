@@ -124,6 +124,56 @@
         </div>
       </div>
 
+ <!-- FOLLOW-UP TAB -->
+<div class="tab-page" id="tab-followup">
+  <div class="scorecard-row">
+    <div class="scorecard red">
+      <div class="sc-label">Overdue</div>
+      <div class="sc-value" id="fu-overdue">—</div>
+      <div class="sc-sub">Past due across all doers</div>
+    </div>
+    <div class="scorecard amber">
+      <div class="sc-label">Due Today</div>
+      <div class="sc-value" id="fu-today">—</div>
+      <div class="sc-sub">Pending today</div>
+    </div>
+    <div class="scorecard green">
+      <div class="sc-label">Done Today</div>
+      <div class="sc-value" id="fu-done">—</div>
+      <div class="sc-sub">Completed today</div>
+    </div>
+    <div class="scorecard blue">
+      <div class="sc-label">Total Pending</div>
+      <div class="sc-value" id="fu-total">—</div>
+      <div class="sc-sub">All due + overdue</div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-title">All Pending Tasks</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select id="filterType" onchange="applyFilters()"
+        style="padding:7px 12px;border:1.5px solid #e5e7eb;border-radius:8px;
+               font-size:12px;font-family:Inter,sans-serif;color:#6b7280;outline:none;">
+        <option value="">All Checklist Types</option>
+      </select>
+      <select id="filterDesig" onchange="applyFilters()"
+        style="padding:7px 12px;border:1.5px solid #e5e7eb;border-radius:8px;
+               font-size:12px;font-family:Inter,sans-serif;color:#6b7280;outline:none;">
+        <option value="">All Designations</option>
+      </select>
+      <button class="refresh-btn" onclick="loadAllTasks()">↺ Refresh</button>
+    </div>
+  </div>
+
+  <div class="table-wrap" id="followupTableWrap">
+    <div class="loading-state">
+      <div class="loading-spinner"></div>
+      Loading tasks…
+    </div>
+  </div>
+</div>
+
     </div>
   </main>
 
@@ -226,13 +276,22 @@
 
   // ── Tab switching ───────────────────────────────────────────────────────────
   function switchTab(tabId, el) {
-    document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.getElementById('tab-' + tabId).classList.add('active');
-    el.classList.add('active');
-    const titles = { summary: 'Summary', checklist: 'Checklist Tasks' };
-    document.getElementById('pageTitle').textContent = titles[tabId] || tabId;
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  el.classList.add('active');
+  const titles = {
+    summary:   'Summary',
+    checklist: 'Checklist Tasks',
+    followup:  'Follow-up'
+  };
+  document.getElementById('pageTitle').textContent = titles[tabId] || tabId;
+
+  // Load follow-up data when tab is first opened
+  if (tabId === 'followup' && allTasksCache.length === 0) {
+    loadAllTasks();
   }
+ }
 
   // ── Load tasks ──────────────────────────────────────────────────────────────
   function loadTasks() {
@@ -376,6 +435,114 @@
   function showTableError(msg) {
     document.getElementById('checklistTableWrap').innerHTML = emptyHTML('⚠️', 'Could not load tasks', msg);
   }
+
+  // ── Follow-up Tab ────────────────────────────────────────────────────────────
+let allTasksCache = [];
+
+function loadAllTasks() {
+  document.getElementById('followupTableWrap').innerHTML = loadingHTML();
+
+  fetch(`${API}?action=getAllTasks&token=${TOKEN}`)
+    .then(r => r.json())
+    .then(result => {
+      if (result.error) {
+        document.getElementById('followupTableWrap').innerHTML =
+          emptyHTML('⚠️', 'Error', result.error);
+        return;
+      }
+      allTasksCache = result.tasks;
+      updateFollowupCounts(result.counts);
+      populateFilters(result.tasks);
+      renderFollowupTable(result.tasks);
+    })
+    .catch(err => {
+      document.getElementById('followupTableWrap').innerHTML =
+        emptyHTML('⚠️', 'Connection error', err.message);
+    });
+}
+
+function updateFollowupCounts(counts) {
+  document.getElementById('fu-overdue').textContent = counts.overdueCount;
+  document.getElementById('fu-today').textContent   = counts.todayCount;
+  document.getElementById('fu-done').textContent    = counts.completedToday;
+  document.getElementById('fu-total').textContent   = counts.totalPending;
+}
+
+function populateFilters(tasks) {
+  const types  = [...new Set(tasks.map(t => t.checklistType))].sort();
+  const desigs = [...new Set(tasks.map(t => t.doerDesig))].sort();
+
+  const typeSelect  = document.getElementById('filterType');
+  const desigSelect = document.getElementById('filterDesig');
+
+  // Keep first option, rebuild rest
+  typeSelect.innerHTML  = '<option value="">All Checklist Types</option>';
+  desigSelect.innerHTML = '<option value="">All Designations</option>';
+
+  types.forEach(t  => typeSelect.innerHTML  += `<option value="${t}">${t}</option>`);
+  desigs.forEach(d => desigSelect.innerHTML += `<option value="${d}">${d}</option>`);
+}
+
+function applyFilters() {
+  const typeFilter  = document.getElementById('filterType').value;
+  const desigFilter = document.getElementById('filterDesig').value;
+
+  let filtered = allTasksCache;
+  if (typeFilter)  filtered = filtered.filter(t => t.checklistType === typeFilter);
+  if (desigFilter) filtered = filtered.filter(t => t.doerDesig === desigFilter);
+
+  renderFollowupTable(filtered);
+}
+
+function renderFollowupTable(tasks) {
+  if (!tasks || tasks.length === 0) {
+    document.getElementById('followupTableWrap').innerHTML =
+      emptyHTML('🎉', 'All clear!', 'No pending tasks found.');
+    return;
+  }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  let rows = '';
+
+  tasks.forEach(t => {
+    const parts = (t.plannedDate || '').split('/');
+    const pd    = parts.length === 3
+      ? new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]))
+      : new Date(t.plannedDate);
+    pd.setHours(0,0,0,0);
+    const isOverdue = pd < today;
+
+    const timeDisplay = formatTime(t.plannedTime);
+
+    rows += `
+      <tr>
+        <td><span class="task-id">${t.taskId}</span></td>
+        <td>${t.checklistType}</td>
+        <td><div class="task-desc">${t.taskDesc}</div></td>
+        <td>${t.doerDesig}</td>
+        <td class="date-col">
+          ${t.plannedDate}
+          ${isOverdue ? '<span class="overdue-badge">OVERDUE</span>' : ''}
+        </td>
+        <td>${timeDisplay}</td>
+      </tr>`;
+  });
+
+  document.getElementById('followupTableWrap').innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Task ID</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Doer</th>
+          <th>Due Date</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
 </script>
 
 </body>
