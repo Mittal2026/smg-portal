@@ -124,6 +124,23 @@
         </div>
       </div>
 
+<!-- DELEGATION TAB -->
+<div class="tab-page" id="tab-delegation">
+  <div class="scorecard-row">
+    <div class="scorecard red"><div class="sc-label">Overdue</div><div class="sc-value" id="dlg-overdue">—</div><div class="sc-sub">Past due</div></div>
+    <div class="scorecard amber"><div class="sc-label">Due Today</div><div class="sc-value" id="dlg-today">—</div><div class="sc-sub">Pending today</div></div>
+    <div class="scorecard blue"><div class="sc-label">Total Pending</div><div class="sc-value" id="dlg-total">—</div><div class="sc-sub">Due today + overdue</div></div>
+  </div>
+  <div class="section-header delegation-header">
+    <div class="section-title">My Delegation Tasks</div>
+    <div class="delegation-actions">
+      <button class="refresh-btn" onclick="loadDelegations()">↺ Refresh</button>
+      <a class="delegation-add" href="https://script.google.com/a/macros/shreemittal.com/s/AKfycbwqBLgB8F5ANNmhiczz2QmXyrT0Ch87sJNTFJsqCrOP7xOjU-NYwYDmwVKREyazA2Q-/exec" target="_blank" rel="noopener noreferrer">+ Add Delegation</a>
+    </div>
+  </div>
+  <div class="table-wrap delegation-table" id="delegationTableWrap"></div>
+</div>
+
  <!-- FOLLOW-UP TAB -->
 <div class="tab-page" id="tab-followup">
   <div class="scorecard-row">
@@ -179,6 +196,13 @@
 
 </div>
 
+<div class="history-overlay" id="historyModal" hidden role="dialog" aria-modal="true" aria-labelledby="historyTitle">
+  <section class="history-dialog">
+    <div class="history-header"><h2 id="historyTitle">Delegation History</h2><button class="refresh-btn" id="historyClose" onclick="closeDelegationHistory()">Close</button></div>
+    <div id="historyBody"></div>
+  </section>
+</div>
+
 <script>
   const API       = 'https://script.google.com/macros/s/AKfycbzuEC8xxdr7xbb8JyJm-bsDZqdgQoE3D99dn74_auRg9xAOasQKbJEPgLcgnGpmLGNHFw/exec';
   const FORM_BASE = 'https://docs.google.com/forms/d/e/1FAIpQLSdKv710FRLRrwKvRQr0mnXPaBI2YPAzckCxdgg7dwg3U5LXTA/viewform?usp=pp_url&entry.1749912467=';
@@ -187,7 +211,7 @@
   const TOKEN       = localStorage.getItem('smg_token');
   const USER_NAME   = localStorage.getItem('smg_name');
   const USER_DESIG  = localStorage.getItem('smg_designation');
-  const MODULES = JSON.parse(localStorage.getItem('smg_modules') || '{}');
+  let MODULES = JSON.parse(localStorage.getItem('smg_modules') || '{}');
 
   function buildSidebar() {
   const nav = document.getElementById('sidebarNav');
@@ -209,6 +233,10 @@
         <span class="nav-text">Checklist Tasks</span>
         <span class="nav-badge" id="sidebarBadge">…</span>
       </div>`;
+  }
+
+  if (MODULES.delegation) {
+    html += `<div class="nav-item" onclick="switchTab('delegation', this)"><span class="nav-icon">📋</span><span class="nav-text">Delegation</span></div>`;
   }
 
   // Follow-up — PC only
@@ -260,11 +288,15 @@
           window.location.href = 'index.html';
           return;
         }
-        loadTasks();
+        MODULES = result.modules || MODULES;
+        localStorage.setItem('smg_modules', JSON.stringify(MODULES));
+        setUserInfo(result.userName || USER_NAME || '?', result.designation || USER_DESIG || '');
+        buildSidebar();
+        if (MODULES.checklist) loadTasks();
       })
       .catch(() => {
         // Network error — still try to load tasks
-        loadTasks();
+        if (MODULES.checklist) loadTasks();
       });
   };
 
@@ -283,9 +315,12 @@
   const titles = {
     summary:   'Summary',
     checklist: 'Checklist Tasks',
-    followup:  'Follow-up'
+    followup:  'Follow-up',
+    delegation: 'Delegation'
   };
   document.getElementById('pageTitle').textContent = titles[tabId] || tabId;
+
+  if (tabId === 'delegation') loadDelegations();
 
   // Load follow-up data when tab is first opened
   if (tabId === 'followup' && allTasksCache.length === 0) {
@@ -319,7 +354,8 @@
     document.getElementById('cl-done').textContent    = counts.completedToday;
 
     // Sidebar badge
-    document.getElementById('sidebarBadge').textContent = counts.totalPending || '0';
+    const checklistBadge = document.getElementById('sidebarBadge');
+    if (checklistBadge) checklistBadge.textContent = counts.totalPending || '0';
 
     // Table
     if (!tasks || tasks.length === 0) {
@@ -563,6 +599,70 @@ function renderFollowupTable(tasks) {
       <tbody>${rows}</tbody>
     </table>`;
 }
+
+let delegationTasks = [];
+let historyReturnFocus = null;
+let historyRequest = 0;
+function dlgEscape(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function dlgSafeLink(value) {
+  try {const u=new URL(value);return u.protocol==='https:' && u.hostname==='docs.google.com' && u.pathname.startsWith('/forms/') ? u.href : '';}
+  catch {return '';}
+}
+function loadDelegations() {
+  const wrap=document.getElementById('delegationTableWrap');
+  wrap.innerHTML=loadingHTML();
+  fetch(`${API}?action=getDelegations&token=${encodeURIComponent(TOKEN)}`)
+    .then(r=>r.json()).then(result=>{
+      if(result.error) throw new Error(result.error);
+      delegationTasks=result.tasks;
+      document.getElementById('dlg-overdue').textContent=result.counts.overdueCount;
+      document.getElementById('dlg-today').textContent=result.counts.todayCount;
+      document.getElementById('dlg-total').textContent=result.counts.totalPending;
+      if(!delegationTasks.length){wrap.innerHTML=emptyHTML('🎉','All caught up!','No delegation tasks due today or earlier.');return;}
+      wrap.innerHTML=`<table><thead><tr><th>Task ID / Checklist</th><th>Task / Latest Update</th><th>Assigned By</th><th>Priority</th><th>Current Due Date</th><th>Action</th></tr></thead><tbody>${delegationTasks.map((t,i)=>{
+        const link=dlgSafeLink(t.actionLink);
+        return `<tr><td><span class="task-id">${dlgEscape(t.taskId)}</span><div class="delegation-meta">${dlgEscape(t.checklistName)}</div></td>
+          <td><div class="delegation-description">${dlgEscape(t.description)}</div>${t.latestUpdate?`<div class="delegation-meta">Latest: ${dlgEscape(t.latestUpdate)}</div>`:''}</td>
+          <td>${dlgEscape(t.assignedBy)}</td><td>${dlgEscape(t.priority)}</td>
+          <td class="date-col">${dlgEscape(t.plannedDate)}${t.overdue?'<span class="overdue-badge">OVERDUE</span>':''}<div class="delegation-meta">Original: ${dlgEscape(t.originalDate)}</div></td>
+          <td><div class="delegation-row-actions">${link?`<a class="complete-btn" target="_blank" rel="noopener noreferrer" href="${dlgEscape(link)}">Mark Action</a>`:'<span>Action link unavailable</span>'}<button class="refresh-btn" data-history-index="${i}">View History</button></div></td></tr>`;
+      }).join('')}</tbody></table>`;
+      wrap.querySelectorAll('[data-history-index]').forEach(button=>button.addEventListener('click',()=>openDelegationHistory(delegationTasks[Number(button.dataset.historyIndex)].taskId,button)));
+    }).catch(err=>{
+      ['dlg-overdue','dlg-today','dlg-total'].forEach(id=>document.getElementById(id).textContent='—');
+      wrap.innerHTML=emptyHTML('⚠️','Could not load delegations',dlgEscape(err.message));
+    });
+}
+function openDelegationHistory(taskId,button) {
+  historyReturnFocus=button;
+  const request=++historyRequest;
+  document.getElementById('historyModal').hidden=false;
+  document.getElementById('historyTitle').textContent='History · '+taskId;
+  document.getElementById('historyBody').innerHTML=loadingHTML();
+  document.getElementById('historyClose').focus();
+  fetch(`${API}?action=getDelegationHistory&token=${encodeURIComponent(TOKEN)}&taskId=${encodeURIComponent(taskId)}`)
+    .then(r=>r.json()).then(result=>{
+      if(request!==historyRequest)return;
+      if(result.error)throw new Error(result.error);
+      const initial=`<div class="history-task"><strong>${dlgEscape(result.task.description)}</strong><p>Original planned date: ${dlgEscape(result.task.originalDate)}</p></div>`;
+      const events=result.events.map(event=>`<li class="history-event"><div class="history-event-title"><strong>${dlgEscape(event.status)}</strong><span>${dlgEscape(event.at)}</span></div><div class="delegation-meta">Updated by: ${dlgEscape(event.by)}</div>${event.remark?`<p>${dlgEscape(event.remark)}</p>`:''}<div class="delegation-meta">Planned date: ${dlgEscape(event.previousDate)} → ${dlgEscape(event.newDate)}</div></li>`).join('');
+      document.getElementById('historyBody').innerHTML=initial+(events?`<ol class="history-timeline">${events}</ol>`:'<p class="history-empty">No updates recorded yet.</p>');
+    }).catch(err=>{if(request===historyRequest)document.getElementById('historyBody').innerHTML=emptyHTML('⚠️','Could not load history',dlgEscape(err.message));});
+}
+function closeDelegationHistory() {
+  historyRequest++;
+  document.getElementById('historyModal').hidden=true;
+  if(historyReturnFocus && historyReturnFocus.isConnected)historyReturnFocus.focus();
+}
+document.getElementById('historyModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeDelegationHistory();});
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('historyModal').hidden)return;
+  if(e.key==='Escape')closeDelegationHistory();
+  if(e.key==='Tab'){e.preventDefault();document.getElementById('historyClose').focus();}
+});
+
 </script>
 
 </body>
