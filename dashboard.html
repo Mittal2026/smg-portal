@@ -320,7 +320,7 @@
   };
   document.getElementById('pageTitle').textContent = titles[tabId] || tabId;
 
-  if (tabId === 'delegation') loadDelegations();
+  if (tabId === 'delegation' && !delegationsLoaded) loadDelegations();
 
   // Load follow-up data when tab is first opened
   if (tabId === 'followup' && allTasksCache.length === 0) {
@@ -601,6 +601,7 @@ function renderFollowupTable(tasks) {
 }
 
 let delegationTasks = [];
+let delegationsLoaded = false;
 let historyReturnFocus = null;
 let historyRequest = 0;
 function dlgEscape(value) {
@@ -617,6 +618,7 @@ function loadDelegations() {
     .then(r=>r.json()).then(result=>{
       if(result.error) throw new Error(result.error);
       delegationTasks=result.tasks;
+      delegationsLoaded = true;
       document.getElementById('dlg-overdue').textContent=result.counts.overdueCount;
       document.getElementById('dlg-today').textContent=result.counts.todayCount;
       document.getElementById('dlg-total').textContent=result.counts.totalPending;
