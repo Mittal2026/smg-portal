@@ -49,36 +49,41 @@
   <!-- MAIN -->
   <main class="main">
     <div class="topbar">
-      <div class="page-title" id="pageTitle">Summary</div>
+      <div class="page-title" id="pageTitle">Dashboard</div>
       <div class="date-badge" id="todayDate"></div>
     </div>
 
     <div class="content">
 
-      <!-- SUMMARY TAB -->
+      <!-- DASHBOARD TAB -->
       <div class="tab-page active" id="tab-summary">
-        <div class="scorecard-row">
-          <div class="scorecard red">
-            <div class="sc-label">Overdue Tasks</div>
-            <div class="sc-value" id="sc-overdue">—</div>
-            <div class="sc-sub">Past due, not completed</div>
-          </div>
-          <div class="scorecard amber">
-            <div class="sc-label">Due Today</div>
-            <div class="sc-value" id="sc-today">—</div>
-            <div class="sc-sub">Pending for today</div>
-          </div>
-          <div class="scorecard green">
-            <div class="sc-label">Completed Today</div>
-            <div class="sc-value" id="sc-done">—</div>
-            <div class="sc-sub">Marked done today</div>
-          </div>
-          <div class="scorecard blue">
-            <div class="sc-label">Total Pending</div>
-            <div class="sc-value" id="sc-total">—</div>
-            <div class="sc-sub">All due + overdue</div>
-          </div>
+        <section class="dashboard-welcome">
+          <div><div class="dashboard-eyebrow">YOUR WORKSPACE</div><h1>Welcome, <span id="dashboardName">—</span></h1><p>A clear view of your tasks and the work that needs your attention.</p></div>
+          <div class="welcome-detail"><span id="dashboardDesignation"></span><span>Make progress, one task at a time.</span></div>
+        </section>
+        <div class="dashboard-section-heading"><div><h2>Your work at a glance</h2><p>Due today and overdue, across your available modules.</p></div><span class="dashboard-live">● Current session</span></div>
+        <div class="dashboard-module-grid">
+          <section class="dashboard-module" id="dashboard-checklist" hidden>
+            <div class="dashboard-module-heading"><div class="dashboard-module-icon checklist-icon">✓</div><div><h3>Checklist</h3><p>Your recurring responsibilities</p></div><button class="dashboard-open" onclick="dashboardOpenModule('checklist')" aria-label="Open Checklist">↗</button></div>
+            <div class="dashboard-state" id="dashboard-checklist-state" role="status">Loading your checklist…</div>
+            <div class="dashboard-module-data" id="dashboard-checklist-data" hidden>
+              <div class="dashboard-metrics"><div><span>Overdue</span><strong class="metric-danger" id="sc-overdue">—</strong></div><div><span>Due today</span><strong id="sc-today">—</strong></div><div><span>Total pending</span><strong id="sc-total">—</strong></div></div>
+              <div class="dashboard-completed"><span>✓ Completed today</span><strong id="sc-done">—</strong></div>
+            </div>
+            <div class="dashboard-module-footer"><span>Keep the routine moving</span><button onclick="dashboardOpenModule('checklist')">View tasks →</button></div>
+          </section>
+          <section class="dashboard-module" id="dashboard-delegation" hidden>
+            <div class="dashboard-module-heading"><div class="dashboard-module-icon delegation-icon">↗</div><div><h3>Delegation</h3><p>One-time tasks and follow-ups</p></div><button class="dashboard-open" onclick="dashboardOpenModule('delegation')" aria-label="Open Delegation">↗</button></div>
+            <div class="dashboard-state" id="dashboard-delegation-state" role="status">Loading your delegations…</div>
+            <div class="dashboard-module-data" id="dashboard-delegation-data" hidden>
+              <div class="dashboard-metrics"><div><span>Overdue</span><strong class="metric-danger" id="dash-dlg-overdue">—</strong></div><div><span>Due today</span><strong id="dash-dlg-today">—</strong></div><div><span>Total pending</span><strong id="dash-dlg-total">—</strong></div></div>
+              <div class="dashboard-module-note">Keep updates and revised dates in one place.</div>
+            </div>
+            <div class="dashboard-module-footer"><span>Turn assignments into progress</span><button onclick="dashboardOpenModule('delegation')">View tasks →</button></div>
+          </section>
         </div>
+        <div id="dashboardNoModules" class="dashboard-no-modules" hidden>No task modules are enabled for your account yet.</div>
+        <section class="dashboard-quick" id="dashboardQuick" hidden><h2>Quick access</h2><div class="dashboard-quick-grid" id="dashboardQuickLinks"></div></section>
       </div>
 
       <!-- CHECKLIST TAB -->
@@ -220,15 +225,15 @@
   let html = `
     <div class="nav-section">
       <div class="nav-label">Main</div>
-      <div class="nav-item active" onclick="switchTab('summary', this)">
+      <div class="nav-item active" data-tab="summary" onclick="switchTab('summary', this)">
         <span class="nav-icon">🏠</span>
-        <span class="nav-text">Summary</span>
+        <span class="nav-text">Dashboard</span>
       </div>`;
 
   // Checklist — controlled by module access
   if (MODULES.checklist) {
     html += `
-      <div class="nav-item" onclick="switchTab('checklist', this)">
+      <div class="nav-item" data-tab="checklist" onclick="switchTab('checklist', this)">
         <span class="nav-icon">✅</span>
         <span class="nav-text">Checklist Tasks</span>
         <span class="nav-badge" id="sidebarBadge">…</span>
@@ -236,13 +241,13 @@
   }
 
   if (MODULES.delegation) {
-    html += `<div class="nav-item" onclick="switchTab('delegation', this)"><span class="nav-icon">📋</span><span class="nav-text">Delegation</span></div>`;
+    html += `<div class="nav-item" data-tab="delegation" onclick="switchTab('delegation', this)"><span class="nav-icon">📋</span><span class="nav-text">Delegation</span></div>`;
   }
 
   // Follow-up — PC only
   if (MODULES.followup) {
     html += `
-      <div class="nav-item" onclick="switchTab('followup', this)">
+      <div class="nav-item" data-tab="followup" onclick="switchTab('followup', this)">
         <span class="nav-icon">🔍</span>
         <span class="nav-text">Follow-up</span>
       </div>`;
@@ -270,6 +275,7 @@
   // ── Init ────────────────────────────────────────────────────────────────────
   window.onload = function() {
     buildSidebar();
+    configureDashboard();
     // Set date
     document.getElementById('todayDate').textContent =
       new Date().toLocaleDateString('en-IN', {
@@ -292,15 +298,20 @@
         localStorage.setItem('smg_modules', JSON.stringify(MODULES));
         setUserInfo(result.userName || USER_NAME || '?', result.designation || USER_DESIG || '');
         buildSidebar();
+        configureDashboard();
         if (MODULES.checklist) loadTasks();
+        if (MODULES.delegation) loadDelegations();
       })
       .catch(() => {
         // Network error — still try to load tasks
         if (MODULES.checklist) loadTasks();
+        if (MODULES.delegation) loadDelegations();
       });
   };
 
   function setUserInfo(name, designation) {
+    document.getElementById('dashboardName').textContent = name;
+    document.getElementById('dashboardDesignation').textContent = designation;
     document.getElementById('userName').textContent      = name;
     document.getElementById('userDesignation').textContent = designation;
     document.getElementById('userAvatar').textContent    = name.charAt(0).toUpperCase();
@@ -313,7 +324,7 @@
   document.getElementById('tab-' + tabId).classList.add('active');
   el.classList.add('active');
   const titles = {
-    summary:   'Summary',
+    summary:   'Dashboard',
     checklist: 'Checklist Tasks',
     followup:  'Follow-up',
     delegation: 'Delegation'
@@ -330,6 +341,7 @@
 
   // ── Load tasks ──────────────────────────────────────────────────────────────
   function loadTasks() {
+    dashboardModuleState('checklist', 'loading');
     document.getElementById('checklistTableWrap').innerHTML = loadingHTML();
 
     fetch(`${API}?action=getTasks&token=${TOKEN}`)
@@ -343,6 +355,7 @@
 
   function renderAll(result) {
     const { tasks, counts } = result;
+    dashboardModuleState('checklist', 'ready');
 
     // Scorecards
     document.getElementById('sc-overdue').textContent = counts.overdueCount;
@@ -469,6 +482,7 @@
   }
 
   function showTableError(msg) {
+    dashboardModuleState('checklist', 'error');
     document.getElementById('checklistTableWrap').innerHTML = emptyHTML('⚠️', 'Could not load tasks', msg);
   }
 
@@ -612,13 +626,18 @@ function dlgSafeLink(value) {
   catch {return '';}
 }
 function loadDelegations() {
+  dashboardModuleState('delegation', 'loading');
   const wrap=document.getElementById('delegationTableWrap');
   wrap.innerHTML=loadingHTML();
   fetch(`${API}?action=getDelegations&token=${encodeURIComponent(TOKEN)}`)
     .then(r=>r.json()).then(result=>{
       if(result.error) throw new Error(result.error);
       delegationTasks=result.tasks;
-      delegationsLoaded = true;
+      delegationsLoaded=true;
+      dashboardModuleState('delegation','ready');
+      document.getElementById('dash-dlg-overdue').textContent=result.counts.overdueCount;
+      document.getElementById('dash-dlg-today').textContent=result.counts.todayCount;
+      document.getElementById('dash-dlg-total').textContent=result.counts.totalPending;
       document.getElementById('dlg-overdue').textContent=result.counts.overdueCount;
       document.getElementById('dlg-today').textContent=result.counts.todayCount;
       document.getElementById('dlg-total').textContent=result.counts.totalPending;
@@ -633,6 +652,7 @@ function loadDelegations() {
       }).join('')}</tbody></table>`;
       wrap.querySelectorAll('[data-history-index]').forEach(button=>button.addEventListener('click',()=>openDelegationHistory(delegationTasks[Number(button.dataset.historyIndex)].taskId,button)));
     }).catch(err=>{
+      dashboardModuleState('delegation','error');
       ['dlg-overdue','dlg-today','dlg-total'].forEach(id=>document.getElementById(id).textContent='—');
       wrap.innerHTML=emptyHTML('⚠️','Could not load delegations',dlgEscape(err.message));
     });
@@ -664,6 +684,37 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape')closeDelegationHistory();
   if(e.key==='Tab'){e.preventDefault();document.getElementById('historyClose').focus();}
 });
+
+
+function dashboardOpenModule(module) {
+  const item=document.querySelector('.nav-item[data-tab="'+module+'"]');
+  if(item) switchTab(module,item);
+}
+function dashboardModuleState(module,state) {
+  const status=document.getElementById('dashboard-'+module+'-state');
+  const data=document.getElementById('dashboard-'+module+'-data');
+  if(!status || !data)return;
+  data.hidden=state!=='ready';status.hidden=state==='ready';
+  status.replaceChildren();
+  if(state==='loading')status.textContent='Loading your '+(module==='checklist'?'checklist':'delegations')+'…';
+  if(state==='error'){
+    const text=document.createElement('span');text.textContent="Couldn't load this module.";
+    const retry=document.createElement('button');retry.className='dashboard-retry';retry.textContent='Retry';
+    retry.onclick=()=>module==='checklist'?loadTasks():loadDelegations();
+    status.append(text,retry);
+  }
+}
+function configureDashboard() {
+  document.getElementById('dashboard-checklist').hidden=!MODULES.checklist;
+  document.getElementById('dashboard-delegation').hidden=!MODULES.delegation;
+  document.getElementById('dashboardNoModules').hidden=!!(MODULES.checklist || MODULES.delegation);
+  const quick=document.getElementById('dashboardQuickLinks');quick.replaceChildren();
+  const addButton=(label,module)=>{const button=document.createElement('button');button.className='dashboard-quick-item';button.textContent=label+' →';button.onclick=()=>dashboardOpenModule(module);quick.append(button);};
+  if(MODULES.checklist)addButton('My checklist','checklist');
+  if(MODULES.delegation)addButton('My delegations','delegation');
+  if(MODULES.followup)addButton('Team follow-up','followup');
+  document.getElementById('dashboardQuick').hidden=!quick.children.length;
+}
 
 </script>
 
