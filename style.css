@@ -374,3 +374,25 @@ tbody td { padding: 13px 16px; font-size: 13px; color: var(--text); vertical-ali
   .brand-panel { display: none; }
   .form-panel { padding: 36px 28px; }
 }
+
+/* Delegation task list and history */
+.delegation-actions,.delegation-row-actions {display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.delegation-add {display:inline-flex;padding:8px 14px;border-radius:8px;background:var(--accent);color:white;text-decoration:none;font-size:12px;font-weight:600}
+.delegation-table {overflow-x:auto}
+.delegation-description {min-width:200px;max-width:390px;white-space:pre-wrap;overflow-wrap:anywhere}
+.delegation-meta {font-size:11px;color:var(--text-soft);margin-top:6px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.history-overlay {position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.history-overlay[hidden] {display:none}
+.history-dialog {background:white;border-radius:16px;width:100%;max-width:720px;max-height:85vh;overflow:auto;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.history-header {display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:20px}
+.history-header h2 {font-size:18px}
+.history-task {padding:14px;background:var(--bg);border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+.history-task p {font-size:12px;color:var(--text-soft);margin-top:8px}
+.history-timeline {list-style:none;margin:20px 0 0 8px;border-left:2px solid var(--border)}
+.history-event {position:relative;padding:0 0 24px 20px}
+.history-event:before {content:'';position:absolute;width:10px;height:10px;left:-6px;top:3px;background:var(--accent);border-radius:50%}
+.history-event-title {display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.history-event-title span {color:var(--text-soft);font-size:12px}
+.history-event p {font-size:13px;margin:9px 0;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.history-empty {padding:20px;color:var(--text-soft);font-size:13px}
+@media(max-width:640px){.delegation-header{align-items:flex-start;gap:12px;flex-direction:column}.history-dialog{padding:18px}.history-event-title{flex-direction:column;gap:4px}}
